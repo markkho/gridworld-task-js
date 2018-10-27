@@ -1,0 +1,23 @@
+{
+  "name": "gridworld-task",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build-debug": "browserify src/gridworld-task.es6 -o gridworld-task.js -d -t babelify",
+    "build": "browserify src/gridworld-task.es6 -o gridworld-task.js -t babelify",
+    "loaddemo": "open http://localhost:8123; python -m SimpleHTTPServer 8123"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cartesian-product": "^2.1.2",
+    "jquery": "^3.3.1"
+  },
+  "devDependencies": {
+    "babel-core": "^6.26.3",
+    "babel-preset-env": "^1.7.0",
+    "babelify": "^8.0.0"
+  }
+}
