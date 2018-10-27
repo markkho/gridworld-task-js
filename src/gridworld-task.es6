@@ -96,21 +96,23 @@ class GridWorldTask {
         $(document).on("keydown", (e) => {
             let kc = e.keyCode ? e.keyCode : e.which;
             let action;
-            switch (kc) {
-                case 37:
-                    action = "<";
-                    break;
-                case 38:
-                    action = '^';
-                    break;
-                case 39:
-                    action = ">";
-                    break;
-                case 40:
-                    action = "v";
-                    break;
-                default:
-                    return
+            if (kc === 37) {
+                action = "<";
+            }
+            else if (kc === 38) {
+                action = "^";
+            }
+            else if (kc === 39) {
+                action = ">";
+            }
+            else if (kc === 40) {
+                action = "v";
+            }
+            else if (kc === 32 && this.mdp.include_wait) {
+                action = "x";
+            }
+            else {
+                return
             }
             if (this.disable_during_movement) {
                 $(document).off("keydown");

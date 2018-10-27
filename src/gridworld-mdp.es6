@@ -28,6 +28,7 @@ export class GridWorldMDP {
         });
         this.statetypes = _.fromPairs(this.statetypes);
         this.absorbing_states = _.map(absorbing_states, String);
+        this.include_wait = include_wait;
         if (include_wait) {
 			this.actions = ['^', 'v', '<', '>', 'x'];
 		}

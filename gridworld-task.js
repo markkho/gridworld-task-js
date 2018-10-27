@@ -53897,6 +53897,7 @@ var GridWorldMDP = exports.GridWorldMDP = function () {
         });
         this.statetypes = _.fromPairs(this.statetypes);
         this.absorbing_states = _.map(absorbing_states, String);
+        this.include_wait = include_wait;
         if (include_wait) {
             this.actions = ['^', 'v', '<', '>', 'x'];
         } else {
@@ -54101,21 +54102,18 @@ var GridWorldTask = function () {
             (0, _jquery2.default)(document).on("keydown", function (e) {
                 var kc = e.keyCode ? e.keyCode : e.which;
                 var action = void 0;
-                switch (kc) {
-                    case 37:
-                        action = "<";
-                        break;
-                    case 38:
-                        action = '^';
-                        break;
-                    case 39:
-                        action = ">";
-                        break;
-                    case 40:
-                        action = "v";
-                        break;
-                    default:
-                        return;
+                if (kc === 37) {
+                    action = "<";
+                } else if (kc === 38) {
+                    action = "^";
+                } else if (kc === 39) {
+                    action = ">";
+                } else if (kc === 40) {
+                    action = "v";
+                } else if (kc === 32 && _this2.mdp.include_wait) {
+                    action = "x";
+                } else {
+                    return;
                 }
                 if (_this2.disable_during_movement) {
                     (0, _jquery2.default)(document).off("keydown");
