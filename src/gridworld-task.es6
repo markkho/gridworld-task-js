@@ -16,18 +16,20 @@ class GridWorldTask {
     constructor({
         container,
         step_callback = (d) => {console.log(d)},
-        absorbing_callback = () => {},
+        endtask_callback = () => {},
         annotations = [],
 
         OBJECT_ANIMATION_TIME = 200,
         disable_during_movement = true,
         WALL_WIDTH = .08,
         TILE_SIZE = 100,
-        INTENTIONAL_ACTION_TIME_PROP = .4
+        INTENTIONAL_ACTION_TIME_PROP = .4,
+        DELAY_TO_REACTIVATE_UI = .8,
+        END_OF_ROUND_DELAY_MULTIPLIER = 4
     }) {
         this.container = container;
         this.step_callback = step_callback;
-        this.absorbing_callback = absorbing_callback;
+        this.endtask_callback = endtask_callback;
         this.annotations = annotations;
 
         this.painter_config = {
@@ -38,8 +40,8 @@ class GridWorldTask {
 
         this.disable_during_movement = disable_during_movement;
         this.INTENTIONAL_ACTION_TIME_PROP = INTENTIONAL_ACTION_TIME_PROP;
-        this.DELAY_TO_REACTIVATE_UI = .8;
-        this.END_OF_ROUND_DELAY_MULTIPLIER = 4;
+        this.DELAY_TO_REACTIVATE_UI = DELAY_TO_REACTIVATE_UI;
+        this.END_OF_ROUND_DELAY_MULTIPLIER = END_OF_ROUND_DELAY_MULTIPLIER;
     }
 
     init({
@@ -86,6 +88,7 @@ class GridWorldTask {
             this.annotations.push(annotation);
         });
         this.show_rewards = show_rewards;
+        this.task_ended = false;
     }
 
     start() {
@@ -156,13 +159,13 @@ class GridWorldTask {
         }
 
         //handle setting up next trial
-        if (this.mdp.is_absorbing(nextstate)) {
+        if (this.mdp.is_absorbing(nextstate) || this.task_ended) {
             $(document).off("keydown");
             setTimeout(() => {
                 this.painter.hide_object("agent")
             }, animtime*(this.END_OF_ROUND_DELAY_MULTIPLIER - 1));
             setTimeout(() => {
-                this.absorbing_callback()
+                this.endtask_callback()
             }, animtime*this.END_OF_ROUND_DELAY_MULTIPLIER);
         }
         else if (this.disable_during_movement) {
@@ -174,11 +177,17 @@ class GridWorldTask {
         this.state = nextstate;
         return {
             state,
+            state_type: this.mdp.statetypes[state],
             action,
             nextstate,
+            nextstate_type: this.mdp.statetypes[nextstate],
             reward,
             datetime
         }
+    }
+
+    end_task() {
+        this.task_ended = true;
     }
 }
 
