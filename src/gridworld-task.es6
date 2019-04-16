@@ -20,7 +20,9 @@ class GridWorldTask {
         annotations = [],
 
         OBJECT_ANIMATION_TIME = 200,
+        REWARD_ANIMATION_TIME = 800,
         disable_during_movement = true,
+        disable_hold_key = true,
         WALL_WIDTH = .08,
         TILE_SIZE = 100,
         INTENTIONAL_ACTION_TIME_PROP = .4,
@@ -42,6 +44,9 @@ class GridWorldTask {
         this.INTENTIONAL_ACTION_TIME_PROP = INTENTIONAL_ACTION_TIME_PROP;
         this.DELAY_TO_REACTIVATE_UI = DELAY_TO_REACTIVATE_UI;
         this.END_OF_ROUND_DELAY_MULTIPLIER = END_OF_ROUND_DELAY_MULTIPLIER;
+        this.REWARD_ANIMATION_TIME = REWARD_ANIMATION_TIME;
+        this.TILE_SIZE = TILE_SIZE;
+        this.disable_hold_key = disable_hold_key;
     }
 
     init({
@@ -61,6 +66,7 @@ class GridWorldTask {
             'y': 'yellow',
             'c': 'chocolate'
         },
+        feature_transitions = {},
         show_rewards = true
     }) {
         let task_params = arguments[0];
@@ -72,7 +78,7 @@ class GridWorldTask {
             this.painter_config
         );
         this.painter.initialize_paper();
-        let tile_params = _.fromPairs(_.map(this.mdp.statetypes, (f, s) => {
+        let tile_params = _.fromPairs(_.map(this.mdp.state_features, (f, s) => {
             return [s, {fill: feature_colors[f]}]
         }));
         this.painter.draw_tiles(tile_params);
@@ -92,6 +98,7 @@ class GridWorldTask {
     }
 
     start() {
+        this.start_datetime = +new Date;
         this.enable_response();
     }
 
@@ -117,6 +124,7 @@ class GridWorldTask {
             else {
                 return
             }
+            this.last_key_code = kc;
             if (this.disable_during_movement) {
                 $(document).off("keydown");
             }
@@ -125,17 +133,12 @@ class GridWorldTask {
         });
     }
 
-    update({action}) {
-        let datetime = +new Date;
-
-        let state = this.state;
-        let nextstate = this.mdp.transition({state, action});
-        let reward = this.mdp.reward({state, action, nextstate});
-
+    _do_animation({reward, action, nextstate}) {
         let r_params = {
             fill: reward < 0 ? 'red' : 'yellow',
-            'stroke-width': 1,
-            stroke: reward < 0 ? 'white' : 'black'
+            'stroke-width': 1.5,
+            stroke: reward < 0 ? 'white' : 'black',
+            "font-size": this.TILE_SIZE/2
         };
         let r_string = reward < 0 ? String(reward) : "+" + reward;
 
@@ -149,44 +152,112 @@ class GridWorldTask {
         let animtime = this.painter.OBJECT_ANIMATION_TIME;
         if (this.show_rewards && reward !== 0) {
             setTimeout(() => {
-                this.painter.float_text({
-                    x: nextstate[0],
-                    y: nextstate[1],
-                    text : r_string,
-                    pre_params : r_params
-                }, animtime*.9);
-            })
+                this.painter.float_text(
+                    nextstate[0],
+                    nextstate[1],
+                    r_string,
+                    r_params,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    this.REWARD_ANIMATION_TIME
+                );
+            }, animtime)
+        }
+    }
+
+    _end_task() {
+        $(document).off("keydown");
+        setTimeout(() => {
+            this.painter.hide_object("agent")
+        }, animtime*(this.END_OF_ROUND_DELAY_MULTIPLIER - 1));
+        setTimeout(() => {
+            this.endtask_callback();
+        }, animtime*this.END_OF_ROUND_DELAY_MULTIPLIER);
+    }
+
+    _setup_trial() {
+        let animtime = this.painter.OBJECT_ANIMATION_TIME;
+
+        // Different conditions depending on pre-conditions
+        // for next responses
+        if (this.disable_during_movement) {
+            if (this.disable_hold_key) {
+                $(document).on("keyup.enable_resp", (e) => {
+                    let kc = e.keyCode ? e.keyCode : e.which;
+                    if (this.last_key_code !== kc) {
+                        return
+                    }
+                    $(document).off("keyup.enable_resp");
+                    this._key_unpressed = true;
+                })
+                setTimeout( () => {
+                    console.log(this._key_unpressed);
+                    if (!this._key_unpressed) {
+                        $(document).off("keyup.enable_resp");
+                        $(document).on("keyup.enable_resp", (e) => {
+                            let kc = e.keyCode ? e.keyCode : e.which;
+                            if (this.last_key_code !== kc) {
+                                return
+                            }
+                            $(document).off("keyup.enable_resp");
+                            this.enable_response();
+                            this._key_unpressed = false;
+                        });
+                    }
+                    else {
+                        this._key_unpressed = false;
+                        this.enable_response();
+                    }
+
+                    this.start_datetime = +new Date;
+                }, animtime*this.DELAY_TO_REACTIVATE_UI);
+            }
+            else {
+                setTimeout(() => {
+                    this.enable_response();
+                    this.start_datetime = +new Date;
+                }, animtime*this.DELAY_TO_REACTIVATE_UI)
+            }
+        }
+        else {
+            console.warn("FEATURE NOT IMPLEMENTED!")
         }
 
-        //handle setting up next trial
+    }
+
+    update({action}) {
+        let response_datetime = +new Date;
+
+        let state = this.state;
+        let nextstate = this.mdp.transition({state, action});
+        let reward = this.mdp.reward({state, action, nextstate});
+
+        this._do_animation({reward, action, nextstate});
+
         if (this.mdp.is_absorbing(nextstate) || this.task_ended) {
-            $(document).off("keydown");
-            setTimeout(() => {
-                this.painter.hide_object("agent")
-            }, animtime*(this.END_OF_ROUND_DELAY_MULTIPLIER - 1));
-            setTimeout(() => {
-                this.endtask_callback()
-            }, animtime*this.END_OF_ROUND_DELAY_MULTIPLIER);
+            this._end_task();
         }
-        else if (this.disable_during_movement) {
-            setTimeout(() => {
-                this.enable_response();
-            }, animtime*this.DELAY_TO_REACTIVATE_UI)
+        else {
+            this._setup_trial();
         }
 
         this.state = nextstate;
         return {
             state,
-            state_type: this.mdp.statetypes[state],
+            state_type: this.mdp.state_features[state],
             action,
             nextstate,
-            nextstate_type: this.mdp.statetypes[nextstate],
+            nextstate_type: this.mdp.state_features[nextstate],
             reward,
-            datetime
+            start_datetime: this.start_datetime,
+            response_datetime: response_datetime
         }
     }
 
     end_task() {
+        //Interface for client to set end task flag
         this.task_ended = true;
     }
 }
