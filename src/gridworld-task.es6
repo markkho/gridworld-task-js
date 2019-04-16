@@ -71,6 +71,8 @@ class GridWorldTask {
     }) {
         let task_params = arguments[0];
         this.mdp = new GridWorldMDP(task_params);
+
+        //initialize painter
         this.painter = new GridWorldPainter(
             this.mdp.width,
             this.mdp.height,
@@ -85,9 +87,11 @@ class GridWorldTask {
 
         this.painter.draw_walls(walls);
 
-        this.painter.add_object("circle", "agent", {"fill" : "blue"});
-        this.painter.draw_object(init_state[0], init_state[1], undefined, "agent");
-        this.state = init_state;
+        if (typeof(init_state) !== 'undefined') {
+            this.painter.add_object("circle", "agent", {"fill" : "blue"});
+            this.painter.draw_object(init_state[0], init_state[1], undefined, "agent");
+            this.state = init_state;
+        }
 
         this.annotations.forEach((annotation_params) => {
             let annotation = this.painter.add_text(annotation_params);
@@ -99,11 +103,22 @@ class GridWorldTask {
 
     start() {
         this.start_datetime = +new Date;
-        this.enable_response();
+        this._enable_response();
     }
 
-    enable_response() {
-        $(document).on("keydown", (e) => {
+    end_task() {
+        //Interface for client to set end task flag
+        this.task_ended = true;
+    }
+
+    reset() {
+        this._disable_response();
+        this.painter.clear_objects();
+        this.painter.draw_tiles();
+    }
+
+    _enable_response() {
+        $(document).on("keydown.task_response", (e) => {
             let kc = e.keyCode ? e.keyCode : e.which;
             let action;
             if (kc === 37) {
@@ -126,11 +141,15 @@ class GridWorldTask {
             }
             this.last_key_code = kc;
             if (this.disable_during_movement) {
-                $(document).off("keydown");
+                this._disable_response();
             }
-            let step_data = this.update({action});
+            let step_data = this._update({action});
             this.step_callback(step_data);
         });
+    }
+
+    _disable_response() {
+        $(document).off("keydown.task_response");
     }
 
     _do_animation({reward, action, nextstate}) {
@@ -168,7 +187,7 @@ class GridWorldTask {
     }
 
     _end_task() {
-        $(document).off("keydown");
+        this._disable_response();
         setTimeout(() => {
             this.painter.hide_object("agent")
         }, animtime*(this.END_OF_ROUND_DELAY_MULTIPLIER - 1));
@@ -202,13 +221,13 @@ class GridWorldTask {
                                 return
                             }
                             $(document).off("keyup.enable_resp");
-                            this.enable_response();
+                            this._enable_response();
                             this._key_unpressed = false;
                         });
                     }
                     else {
                         this._key_unpressed = false;
-                        this.enable_response();
+                        this._enable_response();
                     }
 
                     this.start_datetime = +new Date;
@@ -216,7 +235,7 @@ class GridWorldTask {
             }
             else {
                 setTimeout(() => {
-                    this.enable_response();
+                    this._enable_response();
                     this.start_datetime = +new Date;
                 }, animtime*this.DELAY_TO_REACTIVATE_UI)
             }
@@ -227,7 +246,7 @@ class GridWorldTask {
 
     }
 
-    update({action}) {
+    _update({action}) {
         let response_datetime = +new Date;
 
         let state = this.state;
@@ -254,11 +273,6 @@ class GridWorldTask {
             start_datetime: this.start_datetime,
             response_datetime: response_datetime
         }
-    }
-
-    end_task() {
-        //Interface for client to set end task flag
-        this.task_ended = true;
     }
 }
 
