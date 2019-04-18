@@ -6,24 +6,34 @@
           crossorigin="anonymous"></script>
         <script src="gridworld-task.js" type="text/javascript"></script>
         <script>
+            let task;
             $(document).ready(() => {
-                let task = new GridWorldTask({
+                task = new GridWorldTask({
                     container: $("#task")[0],
                     step_callback: (d) => {console.log(d)},
-                    absorbing_callback: () => {console.log('absorbing')}
+                    endtask_callback: () => {console.log('absorbing')}
                 });
                 task.init({
                     feature_array: [
                         'yygyy',
-                        'ggg..',
+                        'gg#..',
                         'gggrr',
-                        'bbggg',
+                        'bbggb',
                         '.ggcc',
                     ],
                     init_state: [2, 2],
                     absorbing_states: [
                         [0, 0]
                     ],
+                    feature_rewards: {
+                        'y': 10,
+                        'r': -5,
+                    },
+                    feature_transitions: {
+                        'b': {
+                            '2forward': 1.0
+                        }
+                    },
                     show_rewards: true
                 });
                 task.start();
