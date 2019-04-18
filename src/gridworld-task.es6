@@ -6,7 +6,8 @@ import forOwn from 'lodash/forown';
 import map from 'lodash/map';
 import fromPairs from 'lodash/frompairs';
 import includes from 'lodash/includes';
-const _ = {forOwn, map, fromPairs, includes};
+import concat from 'lodash/concat';
+const _ = {forOwn, map, fromPairs, includes, concat};
 let GridWorldPainter = require("gridworld-painter");
 import * as gwmdp from "./gridworld-mdp.es6";
 
@@ -64,7 +65,8 @@ class GridWorldTask {
             'g': 'lightgreen',
             'r': 'red',
             'y': 'yellow',
-            'c': 'chocolate'
+            'c': 'chocolate',
+            '#': 'black'
         },
         feature_transitions = {},
         show_rewards = true
@@ -73,13 +75,16 @@ class GridWorldTask {
         this.mdp = new GridWorldMDP(task_params);
 
         //initialize painter
-        this.painter = new GridWorldPainter(
-            this.mdp.width,
-            this.mdp.height,
-            this.container,
-            this.painter_config
-        );
-        this.painter.initialize_paper();
+        if (typeof(this.painter) === "undefined") {
+            this.painter = new GridWorldPainter(
+                this.mdp.width,
+                this.mdp.height,
+                this.container,
+                this.painter_config
+            );
+            this.painter.initialize_paper();
+        }
+
         let tile_params = _.fromPairs(_.map(this.mdp.state_features, (f, s) => {
             return [s, {fill: feature_colors[f]}]
         }));
@@ -187,6 +192,7 @@ class GridWorldTask {
     }
 
     _end_task() {
+        let animtime = this.painter.OBJECT_ANIMATION_TIME;
         this._disable_response();
         setTimeout(() => {
             this.painter.hide_object("agent")
@@ -212,7 +218,6 @@ class GridWorldTask {
                     this._key_unpressed = true;
                 })
                 setTimeout( () => {
-                    console.log(this._key_unpressed);
                     if (!this._key_unpressed) {
                         $(document).off("keyup.enable_resp");
                         $(document).on("keyup.enable_resp", (e) => {
