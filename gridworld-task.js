@@ -14958,7 +14958,9 @@ var GridWorldTask = function () {
             _ref$DELAY_TO_REACTIV = _ref.DELAY_TO_REACTIVATE_UI,
             DELAY_TO_REACTIVATE_UI = _ref$DELAY_TO_REACTIV === undefined ? .8 : _ref$DELAY_TO_REACTIV,
             _ref$END_OF_ROUND_DEL = _ref.END_OF_ROUND_DELAY_MULTIPLIER,
-            END_OF_ROUND_DELAY_MULTIPLIER = _ref$END_OF_ROUND_DEL === undefined ? 4 : _ref$END_OF_ROUND_DEL;
+            END_OF_ROUND_DELAY_MULTIPLIER = _ref$END_OF_ROUND_DEL === undefined ? 4 : _ref$END_OF_ROUND_DEL,
+            _ref$prevent_default_ = _ref.prevent_default_key_event,
+            prevent_default_key_event = _ref$prevent_default_ === undefined ? true : _ref$prevent_default_;
 
         _classCallCheck(this, GridWorldTask);
 
@@ -14980,6 +14982,7 @@ var GridWorldTask = function () {
         this.REWARD_ANIMATION_TIME = REWARD_ANIMATION_TIME;
         this.TILE_SIZE = TILE_SIZE;
         this.disable_hold_key = disable_hold_key;
+        this.prevent_default_key_event = prevent_default_key_event;
     }
 
     _createClass(GridWorldTask, [{
@@ -15078,6 +15081,9 @@ var GridWorldTask = function () {
                     action = "x";
                 } else {
                     return;
+                }
+                if (_this2.prevent_default_key_event) {
+                    e.preventDefault();
                 }
                 _this2.last_key_code = kc;
                 if (_this2.disable_during_movement) {

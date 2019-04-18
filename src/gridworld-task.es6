@@ -28,7 +28,8 @@ class GridWorldTask {
         TILE_SIZE = 100,
         INTENTIONAL_ACTION_TIME_PROP = .4,
         DELAY_TO_REACTIVATE_UI = .8,
-        END_OF_ROUND_DELAY_MULTIPLIER = 4
+        END_OF_ROUND_DELAY_MULTIPLIER = 4,
+        prevent_default_key_event = true
     }) {
         this.container = container;
         this.step_callback = step_callback;
@@ -48,6 +49,7 @@ class GridWorldTask {
         this.REWARD_ANIMATION_TIME = REWARD_ANIMATION_TIME;
         this.TILE_SIZE = TILE_SIZE;
         this.disable_hold_key = disable_hold_key;
+        this.prevent_default_key_event = prevent_default_key_event;
     }
 
     init({
@@ -143,6 +145,9 @@ class GridWorldTask {
             }
             else {
                 return
+            }
+            if (this.prevent_default_key_event) {
+                e.preventDefault();
             }
             this.last_key_code = kc;
             if (this.disable_during_movement) {
