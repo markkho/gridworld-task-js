@@ -46,9 +46,14 @@ export class GridWorldMDP {
         this.width = feature_array[0].length;
 
         this.states = product([range(this.width), range(this.height)]);
+        this.walls = [];
         this.state_features = _.map(this.states, (s) => {
             let [x, y] = s;
-            return [s, feature_array[this.height - y - 1][x]]
+            let f = feature_array[this.height - y - 1][x];
+            if (f === wall_feature) {
+                this.walls.push(s);
+            }
+            return [s, f]
         });
         this.state_features = _.fromPairs(this.state_features);
         this.absorbing_states = _.map(absorbing_states, String);
@@ -92,7 +97,11 @@ export class GridWorldMDP {
                 return ns1
             },
             'forward': (s, a) => {
-                return this.on_grid([s[0]+a[0], s[1]+a[1]])
+                let ns = this.on_grid([s[0]+a[0], s[1]+a[1]]);
+                if (this.is_wall(ns)) {
+                    return s
+                }
+                return ns
             }
         }[name]
     }
