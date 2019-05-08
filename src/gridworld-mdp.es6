@@ -5,9 +5,10 @@ import map from 'lodash/map';
 import fromPairs from 'lodash/frompairs';
 import get from 'lodash/get';
 import includes from 'lodash/includes';
+import cloneDeep from 'lodash/cloneDeep';
 import keys from 'lodash/keys';
 import weighted from 'weighted';
-const _ = {range, map, fromPairs, get, includes, keys};
+const _ = {range, map, fromPairs, get, includes, keys, cloneDeep};
 import product from 'cartesian-product';
 
 let rot90 = function(v, n) {
@@ -28,9 +29,11 @@ let ACTION_CODES = {
 
 export class GridWorldMDP {
     constructor ({
+        gridworld_array,
         feature_array,
         init_state,
         absorbing_states = [],
+        absorbing_features = [],
         feature_rewards = {},
         feature_transitions = {
             'j': {
@@ -42,16 +45,23 @@ export class GridWorldMDP {
 
         include_wait = false
     }) {
+        if (typeof(feature_array) === 'undefined') {
+            feature_array = gridworld_array;
+        }
         this.height = feature_array.length;
         this.width = feature_array[0].length;
 
         this.states = product([range(this.width), range(this.height)]);
         this.walls = [];
+        absorbing_states = _.cloneDeep(absorbing_states);
         this.state_features = _.map(this.states, (s) => {
             let [x, y] = s;
             let f = feature_array[this.height - y - 1][x];
             if (f === wall_feature) {
                 this.walls.push(s);
+            }
+            if (_.includes(absorbing_features, f)) {
+                absorbing_states.push(s)
             }
             return [s, f]
         });

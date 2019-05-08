@@ -53,10 +53,12 @@ class GridWorldTask {
     }
 
     init({
+        gridworld_array,
         feature_array,
         walls = [],
         init_state,
         absorbing_states,
+        absorbing_features,
         feature_rewards,
         step_cost,
         include_wait,
