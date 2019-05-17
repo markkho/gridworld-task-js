@@ -50,6 +50,9 @@ class GridWorldTask {
         this.TILE_SIZE = TILE_SIZE;
         this.disable_hold_key = disable_hold_key;
         this.prevent_default_key_event = prevent_default_key_event;
+        if (this.prevent_default_key_event) {
+            this._disable_default_key_response()
+        }
     }
 
     init({
@@ -107,7 +110,11 @@ class GridWorldTask {
             this.annotations.push(annotation);
         });
         this.show_rewards = show_rewards;
+
+        //flags
         this.task_ended = false;
+        this.task_paused = false;
+        this.input_enabled = false;
     }
 
     start() {
@@ -126,7 +133,49 @@ class GridWorldTask {
         this.painter.draw_tiles();
     }
 
+    clear() {
+        this._disable_response();
+        this._enable_default_key_response();
+        this.painter.clear_objects();
+        this.painter.draw_tiles();
+    }
+
+    move_agent(state) {
+        this.state = state;
+        this.painter.hide_object('agent');
+        this.painter.draw_object(state[0], state[1], undefined, 'agent')
+        this.painter.show_object('agent');
+    }
+
+    pause_next() {
+        this.task_paused = true;
+    }
+
+    resume() {
+        this.task_paused = false;
+        this.start_datetime = +new Date;
+        this._enable_response();
+        // console.log("Task re-enabled time: "+(+new Date));
+    }
+
+    _disable_default_key_response() {
+        $(document).on("keydown.disable_default", (e) => {
+            let kc = e.keyCode ? e.keyCode : e.which;
+            if ((kc === 37) || (kc === 38) || (kc === 39) || (kc === 40) || (kc === 32  && this.mdp.include_wait)) {
+                e.preventDefault();
+            }
+        });
+    }
+
+    _enable_default_key_response() {
+        $(document).off("keydown.disable_default");
+    }
+
     _enable_response() {
+        if (this.input_enabled) {
+            return
+        }
+        this.input_enabled = true;
         $(document).on("keydown.task_response", (e) => {
             let kc = e.keyCode ? e.keyCode : e.which;
             let action;
@@ -148,19 +197,17 @@ class GridWorldTask {
             else {
                 return
             }
-            if (this.prevent_default_key_event) {
-                e.preventDefault();
-            }
             this.last_key_code = kc;
             if (this.disable_during_movement) {
                 this._disable_response();
             }
-            let step_data = this._update({action});
+            let step_data = this._process_action({action});
             this.step_callback(step_data);
         });
     }
 
     _disable_response() {
+        this.input_enabled = false;
         $(document).off("keydown.task_response");
     }
 
@@ -181,6 +228,7 @@ class GridWorldTask {
             object_id: 'agent'
         });
         let animtime = this.painter.OBJECT_ANIMATION_TIME;
+        // console.log("Animation-end time: "+((+new Date)+this.painter.OBJECT_ANIMATION_TIME));
         if (this.show_rewards && reward !== 0) {
             setTimeout(() => {
                 this.painter.float_text(
@@ -258,23 +306,31 @@ class GridWorldTask {
 
     }
 
-    _update({action}) {
+    _process_action({action}) {
         let response_datetime = +new Date;
+        let state, nextstate, reward;
 
-        let state = this.state;
-        let nextstate = this.mdp.transition({state, action});
-        let reward = this.mdp.reward({state, action, nextstate});
-
-        this._do_animation({reward, action, nextstate});
-
-        if (this.mdp.is_absorbing(nextstate) || this.task_ended) {
-            this._end_task();
+        if (this.task_paused) {
+            // console.log("Response-disabled time: "+(+new Date));
+            this._disable_response();
         }
         else {
-            this._setup_trial();
+            state = this.state;
+            nextstate = this.mdp.transition({state, action});
+            reward = this.mdp.reward({state, action, nextstate});
+
+            this._do_animation({reward, action, nextstate});
+
+            if (this.mdp.is_absorbing(nextstate) || this.task_ended) {
+                this._end_task();
+            }
+            else {
+                //This handles when/how to re-enable user responses
+                this._setup_trial();
+            }
+            this.state = nextstate;
         }
 
-        this.state = nextstate;
         return {
             state,
             state_type: this.mdp.state_features[state],

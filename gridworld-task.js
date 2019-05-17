@@ -15943,6 +15943,9 @@ var GridWorldTask = function () {
         this.TILE_SIZE = TILE_SIZE;
         this.disable_hold_key = disable_hold_key;
         this.prevent_default_key_event = prevent_default_key_event;
+        if (this.prevent_default_key_event) {
+            this._disable_default_key_response();
+        }
     }
 
     _createClass(GridWorldTask, [{
@@ -16002,7 +16005,11 @@ var GridWorldTask = function () {
                 _this.annotations.push(annotation);
             });
             this.show_rewards = show_rewards;
+
+            //flags
             this.task_ended = false;
+            this.task_paused = false;
+            this.input_enabled = false;
         }
     }, {
         key: 'start',
@@ -16024,10 +16031,60 @@ var GridWorldTask = function () {
             this.painter.draw_tiles();
         }
     }, {
-        key: '_enable_response',
-        value: function _enable_response() {
+        key: 'clear',
+        value: function clear() {
+            this._disable_response();
+            this._enable_default_key_response();
+            this.painter.clear_objects();
+            this.painter.draw_tiles();
+        }
+    }, {
+        key: 'move_agent',
+        value: function move_agent(state) {
+            this.state = state;
+            this.painter.hide_object('agent');
+            this.painter.draw_object(state[0], state[1], undefined, 'agent');
+            this.painter.show_object('agent');
+        }
+    }, {
+        key: 'pause_next',
+        value: function pause_next() {
+            this.task_paused = true;
+        }
+    }, {
+        key: 'resume',
+        value: function resume() {
+            this.task_paused = false;
+            this.start_datetime = +new Date();
+            this._enable_response();
+            // console.log("Task re-enabled time: "+(+new Date));
+        }
+    }, {
+        key: '_disable_default_key_response',
+        value: function _disable_default_key_response() {
             var _this2 = this;
 
+            (0, _jquery2.default)(document).on("keydown.disable_default", function (e) {
+                var kc = e.keyCode ? e.keyCode : e.which;
+                if (kc === 37 || kc === 38 || kc === 39 || kc === 40 || kc === 32 && _this2.mdp.include_wait) {
+                    e.preventDefault();
+                }
+            });
+        }
+    }, {
+        key: '_enable_default_key_response',
+        value: function _enable_default_key_response() {
+            (0, _jquery2.default)(document).off("keydown.disable_default");
+        }
+    }, {
+        key: '_enable_response',
+        value: function _enable_response() {
+            var _this3 = this;
+
+            if (this.input_enabled) {
+                return;
+            }
+            this.input_enabled = true;
             (0, _jquery2.default)(document).on("keydown.task_response", function (e) {
                 var kc = e.keyCode ? e.keyCode : e.which;
                 var action = void 0;
@@ -16039,31 +16096,32 @@ var GridWorldTask = function () {
                     action = ">";
                 } else if (kc === 40) {
                     action = "v";
-                } else if (kc === 32 && _this2.mdp.include_wait) {
+                } else if (kc === 32 && _this3.mdp.include_wait) {
                     action = "x";
                 } else {
                     return;
                 }
-                if (_this2.prevent_default_key_event) {
-                    e.preventDefault();
+                // if (this.prevent_default_key_event) {
+                //     e.preventDefault();
+                // }
+                _this3.last_key_code = kc;
+                if (_this3.disable_during_movement) {
+                    _this3._disable_response();
                 }
-                _this2.last_key_code = kc;
-                if (_this2.disable_during_movement) {
-                    _this2._disable_response();
-                }
-                var step_data = _this2._update({ action: action });
-                _this2.step_callback(step_data);
+                var step_data = _this3._process_action({ action: action });
+                _this3.step_callback(step_data);
             });
         }
     }, {
         key: '_disable_response',
         value: function _disable_response() {
+            this.input_enabled = false;
             (0, _jquery2.default)(document).off("keydown.task_response");
         }
     }, {
         key: '_do_animation',
         value: function _do_animation(_ref3) {
-            var _this3 = this;
+            var _this4 = this;
 
             var reward = _ref3.reward,
                 action = _ref3.action,
@@ -16085,30 +16143,31 @@ var GridWorldTask = function () {
                 object_id: 'agent'
             });
             var animtime = this.painter.OBJECT_ANIMATION_TIME;
+            // console.log("Animation-end time: "+((+new Date)+this.painter.OBJECT_ANIMATION_TIME));
             if (this.show_rewards && reward !== 0) {
                 setTimeout(function () {
-                    _this3.painter.float_text(nextstate[0], nextstate[1], r_string, r_params, undefined, undefined, undefined, undefined, _this3.REWARD_ANIMATION_TIME);
+                    _this4.painter.float_text(nextstate[0], nextstate[1], r_string, r_params, undefined, undefined, undefined, undefined, _this4.REWARD_ANIMATION_TIME);
                 }, animtime);
             }
         }
     }, {
         key: '_end_task',
         value: function _end_task() {
-            var _this4 = this;
+            var _this5 = this;
 
             var animtime = this.painter.OBJECT_ANIMATION_TIME;
             this._disable_response();
             setTimeout(function () {
-                _this4.painter.hide_object("agent");
+                _this5.painter.hide_object("agent");
             }, animtime * (this.END_OF_ROUND_DELAY_MULTIPLIER - 1));
             setTimeout(function () {
-                _this4.endtask_callback();
+                _this5.endtask_callback();
             }, animtime * this.END_OF_ROUND_DELAY_MULTIPLIER);
         }
     }, {
         key: '_setup_trial',
         value: function _setup_trial() {
-            var _this5 = this;
+            var _this6 = this;
 
             var animtime = this.painter.OBJECT_ANIMATION_TIME;
 
@@ -16118,35 +16177,35 @@ var GridWorldTask = function () {
                 if (this.disable_hold_key) {
                     (0, _jquery2.default)(document).on("keyup.enable_resp", function (e) {
                         var kc = e.keyCode ? e.keyCode : e.which;
-                        if (_this5.last_key_code !== kc) {
+                        if (_this6.last_key_code !== kc) {
                             return;
                         }
                         (0, _jquery2.default)(document).off("keyup.enable_resp");
-                        _this5._key_unpressed = true;
+                        _this6._key_unpressed = true;
                     });
                     setTimeout(function () {
-                        if (!_this5._key_unpressed) {
+                        if (!_this6._key_unpressed) {
                             (0, _jquery2.default)(document).off("keyup.enable_resp");
                             (0, _jquery2.default)(document).on("keyup.enable_resp", function (e) {
                                 var kc = e.keyCode ? e.keyCode : e.which;
-                                if (_this5.last_key_code !== kc) {
+                                if (_this6.last_key_code !== kc) {
                                     return;
                                 }
                                 (0, _jquery2.default)(document).off("keyup.enable_resp");
-                                _this5._enable_response();
-                                _this5._key_unpressed = false;
+                                _this6._enable_response();
+                                _this6._key_unpressed = false;
                             });
                         } else {
-                            _this5._key_unpressed = false;
-                            _this5._enable_response();
+                            _this6._key_unpressed = false;
+                            _this6._enable_response();
                         }
 
-                        _this5.start_datetime = +new Date();
+                        _this6.start_datetime = +new Date();
                     }, animtime * this.DELAY_TO_REACTIVATE_UI);
                 } else {
                     setTimeout(function () {
-                        _this5._enable_response();
-                        _this5.start_datetime = +new Date();
+                        _this6._enable_response();
+                        _this6.start_datetime = +new Date();
                     }, animtime * this.DELAY_TO_REACTIVATE_UI);
                 }
             } else {
@@ -16154,25 +16213,34 @@ var GridWorldTask = function () {
             }
         }
     }, {
-        key: '_update',
-        value: function _update(_ref4) {
+        key: '_process_action',
+        value: function _process_action(_ref4) {
             var action = _ref4.action;
 
             var response_datetime = +new Date();
+            var state = void 0,
+                nextstate = void 0,
+                reward = void 0;
 
-            var state = this.state;
-            var nextstate = this.mdp.transition({ state: state, action: action });
-            var reward = this.mdp.reward({ state: state, action: action, nextstate: nextstate });
-
-            this._do_animation({ reward: reward, action: action, nextstate: nextstate });
-
-            if (this.mdp.is_absorbing(nextstate) || this.task_ended) {
-                this._end_task();
+            if (this.task_paused) {
+                // console.log("Response-disabled time: "+(+new Date));
+                this._disable_response();
             } else {
-                this._setup_trial();
+                state = this.state;
+                nextstate = this.mdp.transition({ state: state, action: action });
+                reward = this.mdp.reward({ state: state, action: action, nextstate: nextstate });
+
+                this._do_animation({ reward: reward, action: action, nextstate: nextstate });
+
+                if (this.mdp.is_absorbing(nextstate) || this.task_ended) {
+                    this._end_task();
+                } else {
+                    //This handles when/how to re-enable user responses
+                    this._setup_trial();
+                }
+                this.state = nextstate;
             }
 
-            this.state = nextstate;
             return {
                 state: state,
                 state_type: this.mdp.state_features[state],
