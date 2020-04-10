@@ -2,6 +2,10 @@
 Simple raphael.js-based gridworld interface. Currently only has
 very basic functionality.
 
+## Use
+The `gridworld-task.js` file can be used on its own. See `index.html` for an example.
+
+## Developing
 
 To build `gridworld-task.js`:
 ```
