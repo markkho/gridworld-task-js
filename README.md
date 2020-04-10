@@ -1,4 +1,4 @@
-#Gridworld Task
+# Gridworld Task
 Simple raphael.js-based gridworld interface. Currently only has
 very basic functionality.
 
